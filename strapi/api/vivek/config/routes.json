@@ -1,0 +1,52 @@
+{
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/viveks",
+      "handler": "vivek.find",
+      "config": {
+        "policies": []
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/viveks/count",
+      "handler": "vivek.count",
+      "config": {
+        "policies": []
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/viveks/:id",
+      "handler": "vivek.findOne",
+      "config": {
+        "policies": []
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/viveks",
+      "handler": "vivek.create",
+      "config": {
+        "policies": []
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/viveks/:id",
+      "handler": "vivek.update",
+      "config": {
+        "policies": []
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/viveks/:id",
+      "handler": "vivek.delete",
+      "config": {
+        "policies": []
+      }
+    }
+  ]
+}

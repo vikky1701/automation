@@ -1,0 +1,25 @@
+{
+  "kind": "collectionType",
+  "collectionName": "viveks",
+  "info": {
+    "name": "vivek",
+    "description": ""
+  },
+  "options": {
+    "increments": true,
+    "timestamps": true,
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "age": {
+      "type": "integer"
+    },
+    "select": {
+      "type": "boolean"
+    },
+    "password": {
+      "type": "password"
+    }
+  }
+}
