@@ -19,7 +19,7 @@ variable "docker_image_tag" {
 
 # Security Group
 resource "aws_security_group" "strapi_sg" {
-  name_prefix = "strapi-sg-"
+  name_prefix = "strapi-sg-20250722075652927300000001"
   
   ingress {
     from_port   = 22
