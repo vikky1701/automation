@@ -11,6 +11,23 @@ provider "aws" {
   region = "us-east-2"  # Ohio region
 }
 
+
+variable "POSTGRES_DB" {
+  type    = string
+  default = "strapi"
+}
+
+variable "POSTGRES_USER" {
+  type    = string
+  default = "strapi"
+}
+
+variable "POSTGRES_PASSWORD" {
+  type    = string
+  default = "strapi"
+}
+
+
 variable "docker_image_tag" {
   description = "Docker image tag to deploy"
   type        = string
