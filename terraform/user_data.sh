@@ -1,24 +1,35 @@
 #!/bin/bash
+set -euxo pipefail
+exec > >(tee /var/log/user_data.log | logger -t user_data -s 2>/dev/console) 2>&1
+
+# Install Docker
 yum update -y
 yum install -y docker
 
-# Start Docker service
+# Start and enable Docker
 systemctl start docker
 systemctl enable docker
 
-# Add ec2-user to docker group
-usermod -a -G docker ec2-user
+# Add ec2-user to docker group (optional)
+usermod -aG docker ec2-user
 
 # Install docker-compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
-# Create directory for app
+# Create app directory
 mkdir -p /opt/strapi
 cd /opt/strapi
 
-# Create docker-compose.yml for production
-cat > docker-compose.yml << 'EOF'
+# Write .env file (editable via Terraform variables if templated)
+cat > .env <<EOF
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=${POSTGRES_DB}
+EOF
+
+# Write docker-compose.yml with environment variables expanded
+cat > docker-compose.yml <<EOF
 version: '3.8'
 
 services:
@@ -27,10 +38,6 @@ services:
     container_name: strapi_postgres
     restart: always
     env_file: .env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -41,13 +48,6 @@ services:
     container_name: strapi_app
     restart: always
     env_file: .env
-    environment:
-      DATABASE_CLIENT: postgres
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: ${POSTGRES_DB}
-      DATABASE_USERNAME: ${POSTGRES_USER}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "1337:1337"
     depends_on:
@@ -64,13 +64,6 @@ networks:
   strapi_network:
 EOF
 
-# Create .env file
-cat > .env << 'EOF'
-POSTGRES_USER=myuser
-POSTGRES_PASSWORD=mypassword
-POSTGRES_DB=mydb
-EOF
-
-# Pull and run containers
+# Pull and run the containers
 /usr/local/bin/docker-compose pull
 /usr/local/bin/docker-compose up -d

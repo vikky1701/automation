@@ -12,20 +12,7 @@ provider "aws" {
 }
 
 
-variable "POSTGRES_DB" {
-  type    = string
-  default = "strapi"
-}
 
-variable "POSTGRES_USER" {
-  type    = string
-  default = "strapi"
-}
-
-variable "POSTGRES_PASSWORD" {
-  type    = string
-  default = "strapi"
-}
 
 
 variable "docker_image_tag" {
@@ -70,9 +57,9 @@ resource "aws_instance" "strapi" {
   
   user_data = templatefile("${path.module}/user_data.sh", {
   docker_image     = "vikky17/strapi-app:${var.docker_image_tag}"
-  POSTGRES_DB      = var.POSTGRES_DB
-  POSTGRES_USER    = var.POSTGRES_USER
-  POSTGRES_PASSWORD = var.POSTGRES_PASSWORD
+  POSTGRES_DB      = "mydb"
+  POSTGRES_USER    = "myuser"
+  POSTGRES_PASSWORD = "mypassword"
 })
 
   tags = {
