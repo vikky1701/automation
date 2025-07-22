@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
+  region = "us-east-2"  # Ohio region
 }
 
 variable "docker_image_tag" {
@@ -20,21 +20,21 @@ variable "docker_image_tag" {
 # Security Group
 resource "aws_security_group" "strapi_sg" {
   name_prefix = "strapi-sg-"
-
+  
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   ingress {
     from_port   = 1337
     to_port     = 1337
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   egress {
     from_port   = 0
     to_port     = 0
@@ -43,30 +43,23 @@ resource "aws_security_group" "strapi_sg" {
   }
 }
 
-# Key Pair (Corrected path)
-resource "aws_key_pair" "strapi_key" {
-  key_name   = "strapi-key"
-  public_key = file("~/.ssh/strapi-key.pub")
-}
-
 # EC2 Instance
 resource "aws_instance" "strapi" {
-  ami           = "ami-0c94855ba95b798c7" # Amazon Linux 2 (change if needed)
+  ami           = "ami-085f9c64a9b75eed5"  # Ubuntu 24.04 LTS (us-east-2)
   instance_type = "t2.micro"
-
-  key_name               = aws_key_pair.strapi_key.key_name
+  
+  key_name               = "my-strapi-key"  # CHANGE THIS to your .pem key name
   vpc_security_group_ids = [aws_security_group.strapi_sg.id]
-
+  
   user_data = templatefile("${path.module}/user_data.sh", {
-    docker_image = "vikky17/strapi-app:${var.docker_image_tag}"
+    docker_image = "vikky17/strapi-app:${var.docker_image_tag}"  # CHANGE THIS
   })
-
+  
   tags = {
     Name = "Strapi-Server"
   }
 }
 
-# Output EC2 Public IP
 output "ec2_public_ip" {
   value = aws_instance.strapi.public_ip
 }

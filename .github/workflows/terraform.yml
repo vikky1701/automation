@@ -26,7 +26,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: us-east-2
           
       - name: Terraform Init
         run: terraform init
@@ -49,4 +49,4 @@ jobs:
         run: |
           echo "🚀 Deployment Complete!"
           echo "Strapi URL: http://${{ steps.output.outputs.ec2_ip }}:1337"
-          echo "SSH Access: ssh -i ~/.ssh/your-key.pem ec2-user@${{ steps.output.outputs.ec2_ip }}"
+          echo "SSH Access: ssh -i your-key.pem ubuntu@${{ steps.output.outputs.ec2_ip }}"
