@@ -52,9 +52,12 @@ resource "aws_instance" "strapi" {
   vpc_security_group_ids = [aws_security_group.strapi_sg.id]
   
   user_data = templatefile("${path.module}/user_data.sh", {
-    docker_image = "vikky17/strapi-app:${var.docker_image_tag}"  # CHANGE THIS
-  })
-  
+  docker_image     = "vikky17/strapi-app:${var.docker_image_tag}"
+  POSTGRES_DB      = var.POSTGRES_DB
+  POSTGRES_USER    = var.POSTGRES_USER
+  POSTGRES_PASSWORD = var.POSTGRES_PASSWORD
+})
+
   tags = {
     Name = "Strapi-Server"
   }
