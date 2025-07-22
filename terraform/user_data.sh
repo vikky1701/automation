@@ -1,96 +1,135 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
+#!/bin/bash
 
-provider "aws" {
-  region = "us-east-2" # Ohio region
-}
+# Enhanced logging and error handling
+exec > >(tee /var/log/user_data.log | logger -t user_data -s 2>/dev/console) 2>&1
+set -euxo pipefail
 
-variable "docker_image_tag" {
-  description = "Docker image tag to deploy"
-  type        = string
-  default     = "latest"
-}
+echo "=== User Data Script Started at $(date) ==="
+echo "Current user: $(whoami)"
+echo "Current directory: $(pwd)"
 
-# Security Group
-resource "aws_security_group" "strapi_sg" {
-  name_prefix = "strapi-sg-"
-  
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Update packages
+echo "=== Updating packages ==="
+apt-get update -y
+apt-get upgrade -y
 
-  ingress {
-    description = "Strapi"
-    from_port   = 1337
-    to_port     = 1337
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Install Docker
+echo "=== Installing Docker ==="
+apt-get install -y docker.io
 
-  ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Enable and start Docker
+echo "=== Starting Docker service ==="
+systemctl enable docker
+systemctl start docker
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Verify Docker installation
+echo "=== Verifying Docker installation ==="
+docker --version
+systemctl status docker --no-pager
 
-  tags = {
-    Name = "strapi-security-group"
-  }
-}
+# Install docker-compose
+echo "=== Installing Docker Compose ==="
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
 
-# EC2 Instance
-resource "aws_instance" "strapi" {
-  ami                    = "ami-0d1b5a8c13042c939" # Ubuntu 24.04 LTS (us-east-2)
-  instance_type          = "t2.micro"
-  key_name              = "my-strapi-key" # CHANGE THIS to your .pem key name
-  vpc_security_group_ids = [aws_security_group.strapi_sg.id]
-  
-  # Make sure the file name matches exactly
-  user_data = templatefile("${path.module}/user_data.sh", {
-    docker_image      = "vikky17/strapi-app:${var.docker_image_tag}"
-    POSTGRES_DB       = "mydb"
-    POSTGRES_USER     = "myuser"  
-    POSTGRES_PASSWORD = "mypassword"
-  })
+# Verify docker-compose installation
+echo "=== Verifying Docker Compose installation ==="
+/usr/local/bin/docker-compose --version
 
-  # Enable detailed monitoring to help with debugging
-  monitoring = true
+# Add ubuntu user to docker group
+echo "=== Adding ubuntu user to docker group ==="
+usermod -aG docker ubuntu
 
-  tags = {
-    Name = "Strapi-Server"
-  }
-}
+# Create app directory
+echo "=== Creating application directory ==="
+mkdir -p /opt/strapi
+cd /opt/strapi
 
-# Output the public IP
-output "ec2_public_ip" {
-  value = aws_instance.strapi.public_ip
-}
+# Write .env file
+echo "=== Creating .env file ==="
+cat > .env <<EOF
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_DB=${POSTGRES_DB}
+EOF
 
-# Output the public DNS for easier access
-output "ec2_public_dns" {
-  value = aws_instance.strapi.public_dns
-}
+# Verify .env file was created
+echo "=== Verifying .env file ==="
+ls -la /opt/strapi/
+cat /opt/strapi/.env
 
-# Output SSH command
-output "ssh_command" {
-  value = "ssh -i my-strapi-key.pem ubuntu@${aws_instance.strapi.public_ip}"
-}
+# Write docker-compose.yml
+echo "=== Creating docker-compose.yml ==="
+cat > docker-compose.yml <<EOF
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: strapi_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: \${POSTGRES_USER}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD}
+      POSTGRES_DB: \${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - strapi_network
+
+  strapi:
+    image: ${docker_image}
+    container_name: strapi_app
+    restart: always
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: \${POSTGRES_DB}
+      DATABASE_USERNAME: \${POSTGRES_USER}
+      DATABASE_PASSWORD: \${POSTGRES_PASSWORD}
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 1337
+    ports:
+      - "1337:1337"
+    depends_on:
+      - postgres
+    volumes:
+      - strapi_data:/opt/app/public/uploads
+    networks:
+      - strapi_network
+
+volumes:
+  postgres_data:
+  strapi_data:
+
+networks:
+  strapi_network:
+    driver: bridge
+EOF
+
+# Verify docker-compose.yml was created
+echo "=== Verifying docker-compose.yml ==="
+ls -la /opt/strapi/
+cat /opt/strapi/docker-compose.yml
+
+# Set proper ownership
+echo "=== Setting proper ownership ==="
+chown -R ubuntu:ubuntu /opt/strapi
+
+# Pull and run Docker Compose
+echo "=== Pulling Docker images ==="
+/usr/local/bin/docker-compose pull
+
+echo "=== Starting containers ==="
+/usr/local/bin/docker-compose up -d
+
+# Wait a bit for containers to start
+sleep 15
+
+# Verify containers are running
+echo "=== Verifying containers ==="
+/usr/local/bin/docker-compose ps
+docker ps -a
+
+echo "=== User Data Script Completed at $(date) ==="
