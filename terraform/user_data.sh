@@ -1,69 +1,96 @@
-#!/bin/bash
-set -euxo pipefail
-exec > >(tee /var/log/user_data.log | logger -t user_data -s 2>/dev/console) 2>&1
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
 
-# Install Docker
-yum update -y
-yum install -y docker
+provider "aws" {
+  region = "us-east-2" # Ohio region
+}
 
-# Start and enable Docker
-systemctl start docker
-systemctl enable docker
+variable "docker_image_tag" {
+  description = "Docker image tag to deploy"
+  type        = string
+  default     = "latest"
+}
 
-# Add ec2-user to docker group (optional)
-usermod -aG docker ec2-user
+# Security Group
+resource "aws_security_group" "strapi_sg" {
+  name_prefix = "strapi-sg-"
+  
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# Install docker-compose
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
+  ingress {
+    description = "Strapi"
+    from_port   = 1337
+    to_port     = 1337
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# Create app directory
-mkdir -p /opt/strapi
-cd /opt/strapi
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# Write .env file (editable via Terraform variables if templated)
-cat > .env <<EOF
-POSTGRES_USER=${POSTGRES_USER}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-POSTGRES_DB=${POSTGRES_DB}
-EOF
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
-# Write docker-compose.yml with environment variables expanded
-cat > docker-compose.yml <<EOF
-version: '3.8'
+  tags = {
+    Name = "strapi-security-group"
+  }
+}
 
-services:
-  postgres:
-    image: postgres:15
-    container_name: strapi_postgres
-    restart: always
-    env_file: .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - strapi_network
+# EC2 Instance
+resource "aws_instance" "strapi" {
+  ami                    = "ami-0d1b5a8c13042c939" # Ubuntu 24.04 LTS (us-east-2)
+  instance_type          = "t2.micro"
+  key_name              = "my-strapi-key" # CHANGE THIS to your .pem key name
+  vpc_security_group_ids = [aws_security_group.strapi_sg.id]
+  
+  # Make sure the file name matches exactly
+  user_data = templatefile("${path.module}/user_data.sh", {
+    docker_image      = "vikky17/strapi-app:${var.docker_image_tag}"
+    POSTGRES_DB       = "mydb"
+    POSTGRES_USER     = "myuser"  
+    POSTGRES_PASSWORD = "mypassword"
+  })
 
-  strapi:
-    image: ${docker_image}
-    container_name: strapi_app
-    restart: always
-    env_file: .env
-    ports:
-      - "1337:1337"
-    depends_on:
-      - postgres
-    volumes:
-      - ./strapi:/app
-    networks:
-      - strapi_network
+  # Enable detailed monitoring to help with debugging
+  monitoring = true
 
-volumes:
-  postgres_data:
+  tags = {
+    Name = "Strapi-Server"
+  }
+}
 
-networks:
-  strapi_network:
-EOF
+# Output the public IP
+output "ec2_public_ip" {
+  value = aws_instance.strapi.public_ip
+}
 
-# Pull and run the containers
-/usr/local/bin/docker-compose pull
-/usr/local/bin/docker-compose up -d
+# Output the public DNS for easier access
+output "ec2_public_dns" {
+  value = aws_instance.strapi.public_dns
+}
+
+# Output SSH command
+output "ssh_command" {
+  value = "ssh -i my-strapi-key.pem ubuntu@${aws_instance.strapi.public_ip}"
+}
