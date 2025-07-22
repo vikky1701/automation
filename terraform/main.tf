@@ -45,7 +45,7 @@ resource "aws_security_group" "strapi_sg" {
 
 # EC2 Instance
 resource "aws_instance" "strapi" {
-  ami           = "ami-085f9c64a9b75eed5"  # Ubuntu 24.04 LTS (us-east-2)
+  ami           = "ami-0d1b5a8c13042c939"  # Ubuntu 24.04 LTS (us-east-2)
   instance_type = "t2.micro"
   
   key_name               = "my-strapi-key"  # CHANGE THIS to your .pem key name
