@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 env:
-  DOCKER_IMAGE: your-dockerhub-username/strapi-app
+  DOCKER_IMAGE: vikky17/strapi-app
 
 jobs:
   build:
