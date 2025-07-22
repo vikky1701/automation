@@ -66,9 +66,9 @@ EOF
 
 # Create .env file
 cat > .env << 'EOF'
-POSTGRES_USER=strapiuser
-POSTGRES_PASSWORD=strapipass
-POSTGRES_DB=strapidb
+POSTGRES_USER=myuser
+POSTGRES_PASSWORD=mypassword
+POSTGRES_DB=mydb
 EOF
 
 # Pull and run containers
